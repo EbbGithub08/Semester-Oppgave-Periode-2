@@ -1,7 +1,10 @@
 ## TODO – Prosjekt
 
-- [ ] Rydde og strukturere kode
-- [ ] Legge til kommentarer og enkel teknisk dokumentasjon
+- [ ] Porte prosjektet over til en Container og få det på en nettside
+- [ ] Bytte til MySQL database lagring.
+
+- [ ] Legge til flere nivåer til spillet
+- [ ] Kommentere koden
 - [x] Forbedre brukergrensesnitt (menyer, knapper, lesbarhet)
 - [ ] Generell polishing
   - [ ] Finpusse gameplay-følelse
@@ -14,3 +17,4 @@
   - [ ] Små visuelle detaljer (partikler, effekter)
 - [ ] Optimalisering og bug-fiksing
 - [ ] Testing og små justeringer basert på feedback
+ 

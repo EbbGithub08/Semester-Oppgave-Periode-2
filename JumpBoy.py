@@ -97,6 +97,7 @@ db.init_db()
 db.debug_print_scores()
 leaderboard_data = db.get_top_scores()
 
+# Hentet fra KI
 def draw_text(text, font, text_col, x, y, outline_col=None, outline_thickness=1):
     base_text = str(text)
 
@@ -116,8 +117,10 @@ def draw_text(text, font, text_col, x, y, outline_col=None, outline_thickness=1)
 
     screen.blit(text_surface, (x, y))
 
+
 def format_time(seconds):
     return time.strftime("%M:%S", time.gmtime(seconds)) + f".{int((seconds % 1) * 100):02}"
+
 
 def reset_level(level):
     x = 80
@@ -187,6 +190,7 @@ def reset_level(level):
     )
     return world
 
+
 def get_total_coins(world_num):
     total = 0
     lvl = 1
@@ -236,17 +240,17 @@ settings_button = Button(screen_width // 2 - 63, screen_height // 2 + 120, setti
 resume_button = Button(250, 480, resume_img)
 exit_to_menu_button = Button(400, 500, exit_to_menu_img)
 user_text = ''
-
 music_volume = 0.3
 sfx_volume = 0.2
 music_slider = Slider(300, 340, 200, 20, music_volume)
 sfx_slider = Slider(300, 440, 200, 20, sfx_volume)
-
-run = True
 leaderboard_active = False
 settings_active = False
 full_leaderboard_data = {}
 demon_mode = False
+
+
+run = True
 while run == True:
     clock.tick(fps)
 
