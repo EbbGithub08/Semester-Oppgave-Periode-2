@@ -68,6 +68,7 @@ class HighscoreDatabase:
             else:
                 print(f"Tiden var ikke rask nok for {username}: {time_seconds:.2f}s (Best: {row[0]:.2f}s, Perfect: {perfect_run})")
 
+    # KI generert DEBUG print
     def debug_print_scores(self) -> None:
         print("\n====== LEADERBOARDS (DEBUG) ======")
         with self._get_connection() as conn:
@@ -92,6 +93,7 @@ class HighscoreDatabase:
                         perfect_str = " (PERFECT)" if perfect else ""
                         print(f"{rank}. {username} - {time_s:.2f}s - Coins: {coins}{perfect_str}")
         print("\n================================")
+
 
     def _get_scores_by_world(self, limit_per_world: int = None) -> Dict[int, List[Tuple]]:
         scores: Dict[int, List[Tuple]] = {}

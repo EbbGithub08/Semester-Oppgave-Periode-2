@@ -47,7 +47,6 @@ light_blue = (100, 149, 237)
 orange = (255, 128, 0)
 gold = (255, 215, 0)
 
-
 screen = pygame.display.set_mode((screen_width, screen_height))
 pygame.display.set_caption("Platformer")
 
@@ -249,21 +248,102 @@ settings_active = False
 full_leaderboard_data = {}
 demon_mode = False
 
+def start_game_session(world_num, music_path='img/music.wav'):
+    global selected_world, world_select, timer_running, start_time, level, game_over, score, score_at_level_start, death_counter, world
+    plop_fx.play()
+    selected_world = world_num
+    world_select = False
+    timer_running = True
+    start_time = time.time()
+    level = start_level
+    game_over = 0
+    score = 0
+    score_at_level_start = 0
+    death_counter = 0
+    world = reset_level(level)
+    pygame.mixer.music.load(music_path)
+    pygame.mixer.music.play(-1, 0.0, 5000)
 
 run = True
 while run == True:
     clock.tick(fps)
+    
+    for event in pygame.event.get():
+        if event.type == pygame.QUIT:
+            run = False
+
+        if event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_ESCAPE:
+                if leaderboard_active:
+                    leaderboard_active = False
+                    main_menu = True
+                elif settings_active:
+                    settings_active = False
+                elif world_select:
+                    world_select = False
+                    main_menu = True
+                    demon_mode = False
+                    leaderboard_data = db.get_top_scores()
+                elif main_menu:
+                    run = False
+                else:
+                    settings_active = True
+
+
+            if not main_menu and not world_select and not settings_active and not leaderboard_active and game_over != 2:
+                if event.key == pygame.K_r:
+                    level = 1
+                    world = reset_level(level)
+                    game_over = 0
+                    score = 0
+                    score_at_level_start = 0
+                    death_counter = 0
+                    start_time = time.time()
+                    timer_running = True
+                    user_text = ''
+
+
+        if game_over == 2 and event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_BACKSPACE:
+                user_text = user_text[:-1]
+            elif event.key == pygame.K_RETURN:
+                if len(user_text) > 0:
+                    total_possible_coins = get_total_coins(selected_world)
+                    print(f"DEBUG: Score: {score} / Total Possible: {total_possible_coins}")
+                    is_perfect_run = (score >= total_possible_coins) and (total_possible_coins > 0) and (death_counter == 0)
+                    
+                    db.save_highscore(user_text, selected_world, elapsed_time, score, is_perfect_run)
+                    
+                    level = 1
+                    world = reset_level(level)
+                    game_over = 0
+                    score = 0
+                    score_at_level_start = 0
+                    death_counter = 0
+                    start_time = time.time()
+                    timer_running = True
+                    user_text = ''
+            else:
+                if len(user_text) < 9:
+                    user_text += event.unicode
+
 
     screen.fill((0, 0, 0))
-    if (world_select and demon_mode) or (not main_menu and not world_select and selected_world == 5):
+    
+    is_demon_bg = (world_select and demon_mode) or (not main_menu and not world_select and selected_world == 5)
+    
+    if is_demon_bg:
         screen.blit(red_sky_img, (0, 0))
     else:
         screen.blit(bg_img, (0, 0))
         screen.blit(sun_img, (100, 100))
 
+
+    # KI hentet Leaderboard Visualisering
     if leaderboard_active:
         screen.fill((0, 50, 100))
         draw_text('LEADERBOARD', font, light_blue, screen_width // 2 - 250, 50)
+        
         if back_button_select.draw(screen):
             plop_fx.play()
             leaderboard_active = False
@@ -275,14 +355,10 @@ while run == True:
             3: {"name": "World 3", "pos": (420, 150)},
             4: {"name": "Tutorial", "pos": (620, 150)},
         }
-
         for w, data in leaderboard_worlds.items():
             x, y_start = data["pos"]
-            name = data["name"]
-            
-            draw_text(name, font_score, white, x, y_start)
+            draw_text(data["name"], font_score, white, x, y_start)
             y = y_start + 40
-            
             scores = full_leaderboard_data.get(w, [])
             if not scores:
                 draw_text("No scores yet", font_leaderboard_entry, gray, x, y)
@@ -306,38 +382,14 @@ while run == True:
                 screen.blit(spike.image, (spike.rect.x - 10, spike.rect.y - 10))
             coin_group.draw(screen)
             screen.blit(score_coin.image, score_coin.rect)
-            
             draw_text('X ' + str(score), font_score, white, tile_size - 3, 12)
-            time_text = format_time(elapsed_time)
-            draw_text(time_text, font_score, white, screen_width - 220, 12)
+            draw_text(format_time(elapsed_time), font_score, white, screen_width - 220, 12)
             draw_text(death_counter, font_score, red, screen_width - 50, 12)
             screen.blit(death_img, (screen_width - 90, 0))
             screen.blit(player.image, player.rect)
 
-            if selected_world == 4 and game_over != 2:
-                screen.blit(trym_img, (screen_width - 200, 90))
-                bubble_x = screen_width - 400
-                bubble_y = 30
-                screen.blit(speech_img, (bubble_x, bubble_y))
-                
-                lines = []
-                if level == 1:
-                    lines = ["Move: WASD / Arrows", "Jump: Space / Up", "R: Restart  ESC: Menu"]
-                elif level == 2:
-                    lines = ["Hold Space / Up to", "jump higher to reach", "higher platforms."]
-                elif level == 3:
-                    lines = ["Now its time to test", "your skill bitch!", "Huahuahuahuahuaa"]
-                
-                text_x = bubble_x + 15
-                text_y = bubble_y + 32
-                line_spacing = 26
-                for line in lines:
-                    draw_text(line, font_score, black, text_x, text_y, outline_thickness=0)
-                    text_y += line_spacing
-
         pygame.draw.rect(screen, orange, (200, 200, 400, 400))
         pygame.draw.rect(screen, black, (200, 200, 400, 400), 5)
-
         draw_text('SETTINGS', font, white, 245, 220)
         
         draw_text('Music Volume', font_score, white, 300, 300)
@@ -398,6 +450,7 @@ while run == True:
     elif world_select == True:
         if demon_mode != True:
             draw_text('Select World', font, yellow, (screen_width // 2) - 200, screen_height // 2 - 250)
+        
         if demon_toggle_button.draw(screen):
             plop_fx.play()
             demon_mode = not demon_mode
@@ -411,61 +464,13 @@ while run == True:
         
         if not demon_mode:
             if world1_button.draw(screen):
-                plop_fx.play()
-                selected_world = 1
-                world_select = False
-                timer_running = True
-                start_time = time.time()
-                level = start_level
-                game_over = 0
-                score = 0
-                score_at_level_start = 0
-                death_counter = 0
-                world = reset_level(level)
-                pygame.mixer.music.load('img/music.wav')
-                pygame.mixer.music.play(-1, 0.0, 5000)
+                start_game_session(1)
             if world2_button.draw(screen):
-                plop_fx.play()
-                selected_world = 2
-                world_select = False
-                timer_running = True
-                start_time = time.time()
-                level = start_level
-                game_over = 0
-                score = 0
-                score_at_level_start = 0
-                death_counter = 0
-                world = reset_level(level)
-                pygame.mixer.music.load('img/music.wav')
-                pygame.mixer.music.play(-1, 0.0, 5000)
+                start_game_session(2)
             if world3_button.draw(screen):
-                plop_fx.play()
-                selected_world = 3
-                world_select = False
-                timer_running = True
-                start_time = time.time()
-                level = start_level
-                game_over = 0
-                score = 0
-                score_at_level_start = 0
-                death_counter = 0
-                world = reset_level(level)
-                pygame.mixer.music.load('img/music.wav')
-                pygame.mixer.music.play(-1, 0.0, 5000)
+                start_game_session(3)
             if tutorial_button.draw(screen):
-                plop_fx.play()
-                selected_world = 4
-                world_select = False
-                timer_running = True
-                start_time = time.time()
-                level = start_level
-                game_over = 0
-                score = 0
-                score_at_level_start = 0
-                death_counter = 0
-                world = reset_level(level)
-                pygame.mixer.music.load('img/music.wav')
-                pygame.mixer.music.play(-1, 0.0, 5000)
+                start_game_session(4)
         else:
             lb_x = 275
             lb_y = 150
@@ -483,32 +488,22 @@ while run == True:
                     lb_y += 30
             lb_y += 10
 
-
             original_x = world5_button.rect.x
             world5_button.rect.x = (screen_width // 2) - (world5_button.image.get_width() // 2)
             if world5_button.draw(screen):
-                plop_fx.play()
-                selected_world = 5
-                world_select = False
-                timer_running = True
-                start_time = time.time()
-                level = start_level
-                game_over = 0
-                score = 0
-                score_at_level_start = 0
-                death_counter = 0
-                world = reset_level(level)
-                pygame.mixer.music.load('img/Demon_Theme.mp3')
-                pygame.mixer.music.play(-1, 0.0, 5000)
+                start_game_session(5, 'img/Demon_Theme.mp3')
             world5_button.rect.x = original_x
 
     else:
         world.draw(screen)
+        
         if game_over == 0:
             if timer_running:
                 elapsed_time = time.time() - start_time
+            
             blob_group.update()
             platform_group.update()
+            
             collided_coins = pygame.sprite.spritecollide(player, coin_group, True)
             for _ in collided_coins:
                 score += 1
@@ -525,46 +520,31 @@ while run == True:
                 pygame.mixer.music.play(-1, 0.0, 5000)
 
         draw_text('X ' + str(score), font_score, white, tile_size - 3, 12)
-        time_text = format_time(elapsed_time)
-        draw_text(time_text, font_score, white, screen_width - 220, 12)
+        draw_text(format_time(elapsed_time), font_score, white, screen_width - 220, 12)
         draw_text(death_counter, font_score, red, screen_width - 50, 12)
         screen.blit(death_img, (screen_width - 90, 0))
 
-
         if selected_world == 4 and game_over != 2:
             screen.blit(trym_img, (screen_width - 200, 90))
-
             bubble_x = screen_width - 400
             bubble_y = 30
             screen.blit(speech_img, (bubble_x, bubble_y))
-
             tut_font = pygame.font.SysFont('Bauhaus 93', 30)
             lines = []
-
             if level == 1:
-                lines = [
-                    "Move: WASD / Arrows",
-                    "Jump: Space / Up",
-                    "R: Restart  ESC: Menu",
-                ]
+                lines = ["Move: WASD / Arrows", "Jump: Space / Up", "R: Restart  ESC: Menu"]
             elif level == 2:
-                lines = [
-                    "Hold Space / Up to",
-                    "jump higher to reach",
-                    "higher platforms.",
-                ]
+                lines = ["Hold Space / Up to", "jump higher to reach", "higher platforms."]
             elif level == 3:
-                lines = [
-                    "Now its time to test",
-                    "your skill bitch!",
-                    "Huahuahuahuahuaa"
-                ]
+                lines = ["Now its time to test", "your skill bitch!", "Huahuahuahuahuaa"]
+            
             text_x = bubble_x + 15
             text_y = bubble_y + 32
             line_spacing = 26
             for line in lines:
                 draw_text(line, tut_font, black, text_x, text_y, outline_thickness=0)
                 text_y += line_spacing
+        
         for enemy in blob_group:
             screen.blit(enemy.image, enemy.draw_rect)
         platform_group.draw(screen)
@@ -575,44 +555,27 @@ while run == True:
         coin_group.draw(screen)
         screen.blit(score_coin.image, score_coin.rect)
 
-        if game_over == 0:
-            game_over = player.update(
-                game_over,
-                world,
-                blob_group,
-                lava_group,
-                exit_group,
-                platform_group,
-                spike_group,
-                game_over_fx,
-                jump_fx,
-                draw_text,
-                font,
-                red,
-                screen,
-                screen_width,
-                screen_height,
-            )
-            if game_over == -1:
-                game_over_time = pygame.time.get_ticks()
-        else:
-            game_over = player.update(
-                game_over,
-                world,
-                blob_group,
-                lava_group,
-                exit_group,
-                platform_group,
-                spike_group,
-                game_over_fx,
-                jump_fx,
-                draw_text,
-                font,
-                red,
-                screen,
-                screen_width,
-                screen_height,
-            )
+        previous_game_over = game_over
+        game_over = player.update(
+            game_over,
+            world,
+            blob_group,
+            lava_group,
+            exit_group,
+            platform_group,
+            spike_group,
+            game_over_fx,
+            jump_fx,
+            draw_text,
+            font,
+            red,
+            screen,
+            screen_width,
+            screen_height,
+        )
+        
+        if previous_game_over == 0 and game_over == -1:
+            game_over_time = pygame.time.get_ticks()
 
         if game_over == -1: 
             key = pygame.key.get_pressed()
@@ -652,66 +615,8 @@ while run == True:
             draw_text('Enter Name: ' + user_text, font_score, white, (screen_width // 2) - 150, screen_height // 2)
             draw_text('Press ENTER to save', font_score, white, (screen_width // 2) - 150, screen_height // 2 + 50)
 
-    for event in pygame.event.get():
-        if event.type == pygame.QUIT:
-            run = False
-
-        if event.type == pygame.KEYDOWN:
-            if event.key == pygame.K_ESCAPE:
-                if leaderboard_active:
-                    leaderboard_active = False
-                    main_menu = True
-                elif settings_active:
-                    settings_active = False
-                elif world_select:
-                    world_select = False
-                    main_menu = True
-                    demon_mode = False
-                    leaderboard_data = db.get_top_scores()
-                elif main_menu:
-                    run = False
-                else:
-                    settings_active = True
-            if game_over != 2:
-                if event.key == pygame.K_r:
-                        level = 1
-                        world = reset_level(level)
-                        game_over = 0
-                        score = 0
-                        score_at_level_start = 0
-                        death_counter = 0
-                        start_time = time.time()
-                        timer_running = True
-                        user_text = ''
-                
-
-
-        if game_over == 2 and event.type == pygame.KEYDOWN:
-            if event.key == pygame.K_BACKSPACE:
-                user_text = user_text[:-1]
-            elif event.key == pygame.K_RETURN:
-                if len(user_text) > 0:
-                    total_possible_coins = get_total_coins(selected_world)
-                    print(f"DEBUG: Score: {score} / Total Possible: {total_possible_coins}")
-                    is_perfect_run = (score >= total_possible_coins) and (total_possible_coins > 0) and (death_counter == 0)
-                    
-                    db.save_highscore(user_text, selected_world, elapsed_time, score, is_perfect_run)
-                    level = 1
-                    world = reset_level(level)
-                    game_over = 0
-                    score = 0
-                    score_at_level_start = 0
-                    death_counter = 0
-                    start_time = time.time()
-                    timer_running = True
-                    user_text = ''
-            else:
-                if len(user_text) < 9:
-                    user_text += event.unicode
-
-    if (world_select and demon_mode) or (not main_menu and not world_select and selected_world == 5):
+    if is_demon_bg:
         screen.blit(red_overlay, (0, 0))
-
 
     pygame.display.update()
 
